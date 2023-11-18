@@ -8,11 +8,11 @@ import (
 	"testing"
 )
 
-const tpl = `Hello, {{.Config.name}} at {{.Path}}.
+const tpl = `# Hello, {{.Config.name}} at {{.Path}}.
 {{if .Project.things
-}}Things:
+}}# Things:
 {{- range .Project.things }}
-• {{.}}
+# • {{.}}
 {{- end}}
 {{end -}}
 `
@@ -25,10 +25,10 @@ func TestGenerate(t *testing.T) {
 		t.Errorf(err.Error())
 	}
 	out := string(outBytes)
-	exp := `Hello, Potato at x/y/z.
-Things:
-• a
-• b
+	exp := `# Hello, Potato at x/y/z.
+# Things:
+# • a
+# • b
 `
 	if out != exp {
 		t.Errorf("wrong result: %v", out)
@@ -82,10 +82,10 @@ func TestRun(t *testing.T) {
 		t.Errorf(err.Error())
 	}
 	result := string(resultBytes)
-	exp := `Hello, Potato at cd/ef.
-Things:
-• a
-• b
+	exp := `# Hello, Potato at cd/ef.
+# Things:
+# • a
+# • b
 `
 	if result != exp {
 		t.Errorf("wrong results: %v", result)
@@ -112,11 +112,11 @@ Things:
 		t.Errorf(err.Error())
 	}
 	result = string(resultBytes)
-	exp = `Hello, Potato at cd/ef.
-Things:
-• a
-• b
-• c
+	exp = `# Hello, Potato at cd/ef.
+# Things:
+# • a
+# • b
+# • c
 `
 	if result != exp {
 		t.Errorf("wrong results: %v", result)

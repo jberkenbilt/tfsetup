@@ -22,10 +22,10 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	if !ok {
-		return fmt.Errorf("%s is out of date; rerun tfsetup --generate and terraform init", tfsetup.SetupFile)
-	}
 	if args.Check {
+		if !ok {
+			return fmt.Errorf("%s is out of date; rerun tfsetup --generate and terraform init", tfsetup.SetupFile)
+		}
 		fmt.Printf(`{"message": "%s is current"}`+"\n", tfsetup.SetupFile)
 	} else if ok {
 		fmt.Printf("%s is already current\n", tfsetup.SetupFile)

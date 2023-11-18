@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/jberkenbilt/tfsetup/util"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"text/template"
@@ -53,7 +54,18 @@ func generate(
 	if err != nil {
 		return nil, fmt.Errorf("evaluate template: %w", err)
 	}
-	return buf.Bytes(), nil
+
+	cmd := exec.Command("terraform", "fmt", "-")
+	cmd.Stdin = bytes.NewReader(buf.Bytes())
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	var errOut bytes.Buffer
+	cmd.Stderr = &errOut
+	err = cmd.Run()
+	if err != nil {
+		return nil, fmt.Errorf("terraform fmt: %s", errOut.String())
+	}
+	return out.Bytes(), nil
 }
 
 // Run checks or updates the setup file. The boolean return value indicates
