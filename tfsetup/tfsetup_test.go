@@ -40,13 +40,7 @@ func TestRun(t *testing.T) {
 	if !strings.Contains(err.Error(), "tfsetup-context.json") {
 		t.Errorf("didn't fail when not found: %v", err)
 	}
-	dir, err := os.MkdirTemp("", "tfsetup-test")
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
-	defer func() {
-		_ = os.RemoveAll(dir)
-	}()
+	dir := t.TempDir()
 	projectDir := filepath.Join(dir, "ab/cd/ef")
 	configDir := filepath.Join(dir, filepath.Join("ab", configPath))
 	cwd, err := os.Getwd()
