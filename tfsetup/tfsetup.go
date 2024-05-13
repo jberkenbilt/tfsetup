@@ -18,6 +18,18 @@ const configContextFile = "context.json"
 const configTemplate = "setup.tmpl"
 const SetupFile = "setup.tf"
 
+var tfCommand = func() string {
+	_, err := exec.LookPath("tofu")
+	if err == nil {
+		return "tofu"
+	}
+	_, err = exec.LookPath("terraform1")
+	if err == nil {
+		return "terraform"
+	}
+	return ""
+}()
+
 type templateContext struct {
 	Config  any
 	Project any
@@ -55,17 +67,20 @@ func generate(
 		return nil, fmt.Errorf("evaluate template: %w", err)
 	}
 
-	cmd := exec.Command("terraform", "fmt", "-")
-	cmd.Stdin = bytes.NewReader(buf.Bytes())
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	var errOut bytes.Buffer
-	cmd.Stderr = &errOut
-	err = cmd.Run()
-	if err != nil {
-		return nil, fmt.Errorf("terraform fmt: %s", errOut.String())
+	if tfCommand != "" {
+		cmd := exec.Command(tfCommand, "fmt", "-")
+		cmd.Stdin = bytes.NewReader(buf.Bytes())
+		var out bytes.Buffer
+		cmd.Stdout = &out
+		var errOut bytes.Buffer
+		cmd.Stderr = &errOut
+		err = cmd.Run()
+		if err != nil {
+			return nil, fmt.Errorf("%s fmt: %s", tfCommand, errOut.String())
+		}
+		return out.Bytes(), nil
 	}
-	return out.Bytes(), nil
+	return buf.Bytes(), nil
 }
 
 // Run checks or updates the setup file. The boolean return value indicates
