@@ -5,16 +5,24 @@ import (
 	"github.com/alexflint/go-arg"
 	"github.com/jberkenbilt/tfsetup/tfsetup"
 	"os"
+	"path/filepath"
 )
+
+const version = "1.0.0"
 
 type Args struct {
 	Generate bool
 	Check    bool
+	Version  bool
 }
 
 func run() error {
 	var args Args
 	arg.MustParse(&args)
+	if args.Version {
+		fmt.Printf("%s %s\n", filepath.Base(os.Args[0]), version)
+		return nil
+	}
 	if (args.Generate && args.Check) || !(args.Generate || args.Check) {
 		return fmt.Errorf("exactly one of --generate and --check must be specified")
 	}

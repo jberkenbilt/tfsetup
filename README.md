@@ -13,6 +13,8 @@ It requires the following:
 * `Project` -- the data from `tfsetup-config.json`
 * `Path` -- the relative path from the directory containing `tfsetup-config` to the local directory
 
+If `tofu` or `terraform` is found in the path, `tfsetup` will run `tofu fmt` or `terraform fmt` on the resulting setup file. This is the only thing that makes this tool specific to terraform. Otherwise, it is just running the go templating system.
+
 # Example
 
 `tfsetup-config/context.json`:
@@ -60,3 +62,7 @@ provider "aws" {
   allowed_account_ids = [local.aws_account_id]
 }
 ```
+
+# Release Reminder
+
+Update `Version` in main.go, then push tag.
