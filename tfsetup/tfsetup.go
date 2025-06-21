@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"strings"
 	"text/template"
 )
 
@@ -37,12 +38,11 @@ type templateContext struct {
 	Path    string
 }
 
-func generate(
+func newTemplateContext(
 	projectContextBytes []byte,
 	configContextBytes []byte,
-	configTemplate string,
 	relPath string,
-) ([]byte, error) {
+) (*templateContext, error) {
 	var projectContext any
 	err := json.Unmarshal(projectContextBytes, &projectContext)
 	if err != nil {
@@ -53,33 +53,63 @@ func generate(
 	if err != nil {
 		return nil, fmt.Errorf("decode config context: %w", err)
 	}
-	tpl, err := template.New("setup").Funcs(sprig.FuncMap()).Parse(configTemplate)
-	fullContext := templateContext{
+	return &templateContext{
 		Config:  configContext,
 		Project: projectContext,
 		Path:    relPath,
-	}
-	if err != nil {
-		return nil, fmt.Errorf("parse template: %w", err)
-	}
-	var buf bytes.Buffer
-	err = tpl.Execute(&buf, fullContext)
-	if err != nil {
-		return nil, fmt.Errorf("evaluate template: %w", err)
-	}
+	}, nil
+}
 
-	if tfCommand != "" {
+func (tc *templateContext) renderFile(inFile, outFile string, allowChanges bool) (bool, error) {
+	input, err := os.ReadFile(inFile)
+	if err != nil {
+		return false, fmt.Errorf("reading %s: %w", inFile, err)
+	}
+	rendered, err := tc.render(inFile, input)
+	if err != nil {
+		return false, err
+	}
+	if tfCommand != "" && strings.HasSuffix(outFile, ".tf") {
 		cmd := exec.Command(tfCommand, "fmt", "-")
-		cmd.Stdin = bytes.NewReader(buf.Bytes())
+		cmd.Stdin = bytes.NewReader(rendered)
 		var out bytes.Buffer
 		cmd.Stdout = &out
 		var errOut bytes.Buffer
 		cmd.Stderr = &errOut
 		err = cmd.Run()
 		if err != nil {
-			return nil, fmt.Errorf("%s fmt: %s", tfCommand, errOut.String())
+			out.Reset()
+			out.Write(rendered)
+			_, _ = fmt.Fprintf(&out, "/* --- OUTPUT FROM %s fmt ---\n%s\n*/\n", tfCommand, errOut.String())
+			_, _ = fmt.Fprintf(os.Stderr, "WARNING: %s fmt: failed; output appended to file\n", tfCommand)
 		}
-		return out.Bytes(), nil
+		rendered = out.Bytes()
+	}
+	// It's okay if the output file doesn't exist at this point.
+	origOutputBytes, _ := os.ReadFile(outFile)
+	if slices.Equal(origOutputBytes, rendered) {
+		return true, nil
+	}
+	if !allowChanges {
+		return false, nil
+	}
+	_ = os.Remove(outFile)
+	err = os.WriteFile(outFile, rendered, 0444)
+	if err != nil {
+		return false, fmt.Errorf("error writing %s: %w", outFile, err)
+	}
+	return false, nil
+}
+
+func (tc *templateContext) render(name string, input []byte) ([]byte, error) {
+	tpl, err := template.New(name).Funcs(sprig.FuncMap()).Parse(string(input))
+	if err != nil {
+		return nil, fmt.Errorf("parse template: %w", err)
+	}
+	var buf bytes.Buffer
+	err = tpl.Execute(&buf, tc)
+	if err != nil {
+		return nil, fmt.Errorf("evaluate template: %w", err)
 	}
 	return buf.Bytes(), nil
 }
@@ -99,26 +129,9 @@ func Run(allowChanges bool) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("reading %s from %s: %w", configContextFile, configPath, err)
 	}
-	configTemplateBytes, err := os.ReadFile(filepath.Join(configPath, configTemplate))
-	if err != nil {
-		return false, fmt.Errorf("reading %s from %s: %w", configTemplate, configPath, err)
-	}
-	// It's okay if the setup file is missing at this point.
-	origSetupBytes, _ := os.ReadFile(SetupFile)
-	setupBytes, err := generate(projectContextBytes, configContextBytes, string(configTemplateBytes), relPath)
+	tpl, err := newTemplateContext(projectContextBytes, configContextBytes, relPath)
 	if err != nil {
 		return false, err
 	}
-	if slices.Equal(origSetupBytes, setupBytes) {
-		return true, nil
-	}
-	if !allowChanges {
-		return false, nil
-	}
-	_ = os.Remove(SetupFile)
-	err = os.WriteFile(SetupFile, setupBytes, 0444)
-	if err != nil {
-		return false, fmt.Errorf("error writing %s: %w", SetupFile, err)
-	}
-	return false, nil
+	return tpl.renderFile(filepath.Join(configPath, configTemplate), SetupFile, allowChanges)
 }

@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-const tpl = `# Hello, {{.Config.name}} at {{.Path}}.
+const input = `# Hello, {{.Config.name}} at {{.Path}}.
 {{if .Project.things
 }}# Things:
 {{- range .Project.things }}
@@ -17,10 +17,14 @@ const tpl = `# Hello, {{.Config.name}} at {{.Path}}.
 {{end -}}
 `
 
-func TestGenerate(t *testing.T) {
+func TestRender(t *testing.T) {
 	configContextBytes := []byte(`{"name": "Potato"}`)
 	projectContextBytes := []byte(`{"things": ["a", "b"]}`)
-	outBytes, err := generate(projectContextBytes, configContextBytes, tpl, "x/y/z")
+	tpl, err := newTemplateContext(projectContextBytes, configContextBytes, "x/y/z")
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	outBytes, err := tpl.render("input", []byte(input))
 	if err != nil {
 		t.Error(err.Error())
 	}
@@ -56,7 +60,7 @@ func TestRun(t *testing.T) {
 		os.MkdirAll(projectDir, 0777),
 		os.MkdirAll(configDir, 0777),
 		os.Chdir(projectDir),
-		os.WriteFile(filepath.Join(configDir, configTemplate), []byte(tpl), 0777),
+		os.WriteFile(filepath.Join(configDir, configTemplate), []byte(input), 0777),
 		os.WriteFile(filepath.Join(configDir, configContextFile), configContextBytes, 0777),
 		os.WriteFile(projectContextFile, projectContextBytes, 0777),
 	)
