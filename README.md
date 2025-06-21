@@ -15,6 +15,10 @@ It requires the following:
 
 If `tofu` or `terraform` is found in the path, `tfsetup` will run `tofu fmt` or `terraform fmt` on the resulting setup file. This is the only thing that makes this tool specific to terraform. Otherwise, it is just running the go templating system.
 
+Starting with version 1.1.0, `tfsetup` will look in the current directory for any file whose names match `<something>.tfsetup.tmpl`, and will generate a file called `<something>` by evaluating the template with the same context as used for the `setup.tf` file. If the output file name ends with `.tf`, it will be formatted. If formatting fails, the output of the format command will be appended to the file in a multi-line comment.
+
+Starting with version 1.1.0, `tfsetup` can also be run with the `--render` option. In this mode, it will read standard input as a template and render it to standard output or write an error to standard error. No formatting is applied when rendering standard input. This can be used to more easily debug templates or even to inspect context, as in `echo '{{.|toJson}}' | tfsetup --render`.
+
 # Example
 
 `tfsetup-config/context.json`:

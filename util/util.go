@@ -33,3 +33,13 @@ func FindDir(targetDir string) (dirPath string, relPath string, err error) {
 
 	return "", "", fmt.Errorf("%s not found as directory at or above current directory", targetDir)
 }
+
+func CountTrue(args ...bool) int {
+	count := 0
+	for _, arg := range args {
+		if arg {
+			count += 1
+		}
+	}
+	return count
+}

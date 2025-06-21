@@ -3,9 +3,11 @@ package tfsetup
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/Masterminds/sprig/v3"
 	"github.com/jberkenbilt/tfsetup/util"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -33,15 +35,17 @@ var tfCommand = func() string {
 }()
 
 type templateContext struct {
-	Config  any
-	Project any
-	Path    string
+	Config        any
+	Project       any
+	Path          string
+	relConfigPath string // not part of context since private
 }
 
 func newTemplateContext(
 	projectContextBytes []byte,
 	configContextBytes []byte,
 	relPath string,
+	relConfigPath string,
 ) (*templateContext, error) {
 	var projectContext any
 	err := json.Unmarshal(projectContextBytes, &projectContext)
@@ -54,9 +58,10 @@ func newTemplateContext(
 		return nil, fmt.Errorf("decode config context: %w", err)
 	}
 	return &templateContext{
-		Config:  configContext,
-		Project: projectContext,
-		Path:    relPath,
+		Config:        configContext,
+		Project:       projectContext,
+		Path:          relPath,
+		relConfigPath: relConfigPath,
 	}, nil
 }
 
@@ -98,6 +103,7 @@ func (tc *templateContext) renderFile(inFile, outFile string, allowChanges bool)
 	if err != nil {
 		return false, fmt.Errorf("error writing %s: %w", outFile, err)
 	}
+	fmt.Printf("updated %s\n", outFile)
 	return false, nil
 }
 
@@ -114,24 +120,68 @@ func (tc *templateContext) render(name string, input []byte) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+func makeContext() (*templateContext, error) {
+	projectContextBytes, err := os.ReadFile(projectContextFile)
+	if err != nil {
+		return nil, fmt.Errorf("read %s: %w", projectContextFile, err)
+	}
+	relConfigPath, relPath, err := util.FindDir(configPath)
+	if err != nil {
+		return nil, fmt.Errorf("unable to find %s above current directory: %w", relConfigPath, err)
+	}
+	configContextBytes, err := os.ReadFile(filepath.Join(relConfigPath, configContextFile))
+	if err != nil {
+		return nil, fmt.Errorf("reading %s from %s: %w", configContextFile, relConfigPath, err)
+	}
+	return newTemplateContext(projectContextBytes, configContextBytes, relPath, relConfigPath)
+}
+
 // Run checks or updates the setup file. The boolean return value indicates
 // whether the file was already up-to-date.
 func Run(allowChanges bool) (bool, error) {
-	projectContextBytes, err := os.ReadFile(projectContextFile)
-	if err != nil {
-		return false, fmt.Errorf("read %s: %w", projectContextFile, err)
-	}
-	configPath, relPath, err := util.FindDir(configPath)
-	if err != nil {
-		return false, fmt.Errorf("unable to find %s above current directory: %w", configPath, err)
-	}
-	configContextBytes, err := os.ReadFile(filepath.Join(configPath, configContextFile))
-	if err != nil {
-		return false, fmt.Errorf("reading %s from %s: %w", configContextFile, configPath, err)
-	}
-	tpl, err := newTemplateContext(projectContextBytes, configContextBytes, relPath)
+	tpl, err := makeContext()
 	if err != nil {
 		return false, err
 	}
-	return tpl.renderFile(filepath.Join(configPath, configTemplate), SetupFile, allowChanges)
+	allOkay := true
+	var allErrors []error
+	handle := func(inFile, outFile string) {
+		ok, err := tpl.renderFile(inFile, outFile, allowChanges)
+		if err != nil {
+			allErrors = append(allErrors, err)
+		}
+		if !ok {
+			allOkay = false
+		}
+	}
+	handle(filepath.Join(tpl.relConfigPath, configTemplate), SetupFile)
+	entries, err := os.ReadDir(".")
+	if err != nil {
+		return false, fmt.Errorf("error reading current directory: %w", err)
+	}
+	for _, entry := range entries {
+		name := entry.Name()
+		outFile := strings.TrimSuffix(name, ".tfsetup.tmpl")
+		if outFile != name {
+			handle(name, outFile)
+		}
+	}
+	return allOkay, errors.Join(allErrors...)
+}
+
+func Render() error {
+	tpl, err := makeContext()
+	if err != nil {
+		return err
+	}
+	input, err := io.ReadAll(os.Stdin)
+	if err != nil {
+		return fmt.Errorf("reading standard input: %w", err)
+	}
+	output, err := tpl.render("stdin", input)
+	if err != nil {
+		return err
+	}
+	_, _ = os.Stdout.Write(output)
+	return nil
 }

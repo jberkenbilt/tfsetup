@@ -1,18 +1,21 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"github.com/alexflint/go-arg"
 	"github.com/jberkenbilt/tfsetup/tfsetup"
+	"github.com/jberkenbilt/tfsetup/util"
 	"os"
 	"path/filepath"
 )
 
-const version = "1.1.0.pre"
+const version = "1.1.0"
 
 type Args struct {
-	Generate bool
-	Check    bool
+	Generate bool `help:"regenerate outdated files"`
+	Check    bool `help:"check all generated files against expected output"`
+	Render   bool `help:"render standard input with current context"`
 	Version  bool
 }
 
@@ -23,8 +26,11 @@ func run() error {
 		fmt.Printf("%s %s\n", filepath.Base(os.Args[0]), version)
 		return nil
 	}
-	if args.Generate == args.Check {
-		return fmt.Errorf("exactly one of --generate and --check must be specified")
+	if util.CountTrue(args.Generate, args.Check, args.Render) != 1 {
+		return fmt.Errorf("exactly one of --generate, --check, or --render must be specified")
+	}
+	if args.Render {
+		return tfsetup.Render()
 	}
 	ok, err := tfsetup.Run(args.Generate)
 	if err != nil {
@@ -32,13 +38,11 @@ func run() error {
 	}
 	if args.Check {
 		if !ok {
-			return fmt.Errorf("%s is out of date; rerun tfsetup --generate and terraform init", tfsetup.SetupFile)
+			return errors.New("some files are out of date; rerun tfsetup --generate and terraform init")
 		}
-		fmt.Printf(`{"message": "%s is current"}`+"\n", tfsetup.SetupFile)
+		fmt.Println(`{"message": "all files are current"}`)
 	} else if ok {
-		fmt.Printf("%s is already current\n", tfsetup.SetupFile)
-	} else {
-		fmt.Printf("updated %s\n", tfsetup.SetupFile)
+		fmt.Println("all files are already current")
 	}
 	return nil
 }
