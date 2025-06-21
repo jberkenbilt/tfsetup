@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/Masterminds/sprig/v3"
 	"github.com/jberkenbilt/tfsetup/util"
 	"os"
 	"os/exec"
@@ -52,7 +53,7 @@ func generate(
 	if err != nil {
 		return nil, fmt.Errorf("decode config context: %w", err)
 	}
-	tpl, err := template.New("setup").Parse(configTemplate)
+	tpl, err := template.New("setup").Funcs(sprig.FuncMap()).Parse(configTemplate)
 	fullContext := templateContext{
 		Config:  configContext,
 		Project: projectContext,

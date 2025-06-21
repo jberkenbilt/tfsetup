@@ -1,6 +1,6 @@
 # tfsetup
 
-`tfsetup` uses the go templating language to generate a setup.tf file for terraform projects. Its intended use to help with any policy-based or repetitive setup.
+`tfsetup` uses the go templating language to generate a setup.tf file for terraform projects. Its intended use to help with any policy-based or repetitive setup. You have access to standard go template functions as well as [sprig](https://masterminds.github.io/sprig/).
 
 It requires the following:
 * `tfsetup-context.json` in the current directory
