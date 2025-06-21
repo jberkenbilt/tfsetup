@@ -23,7 +23,7 @@ func run() error {
 		fmt.Printf("%s %s\n", filepath.Base(os.Args[0]), version)
 		return nil
 	}
-	if (args.Generate && args.Check) || !(args.Generate || args.Check) {
+	if args.Generate == args.Check {
 		return fmt.Errorf("exactly one of --generate and --check must be specified")
 	}
 	ok, err := tfsetup.Run(args.Generate)

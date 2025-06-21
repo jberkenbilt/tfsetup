@@ -22,7 +22,7 @@ func TestGenerate(t *testing.T) {
 	projectContextBytes := []byte(`{"things": ["a", "b"]}`)
 	outBytes, err := generate(projectContextBytes, configContextBytes, tpl, "x/y/z")
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Error(err.Error())
 	}
 	out := string(outBytes)
 	exp := `# Hello, Potato at x/y/z.
@@ -45,7 +45,7 @@ func TestRun(t *testing.T) {
 	configDir := filepath.Join(dir, filepath.Join("ab", configPath))
 	cwd, err := os.Getwd()
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err.Error())
 	}
 	defer func() {
 		_ = os.Chdir(cwd)
@@ -61,7 +61,7 @@ func TestRun(t *testing.T) {
 		os.WriteFile(projectContextFile, projectContextBytes, 0777),
 	)
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err.Error())
 	}
 	ok, err := Run(false)
 	if ok || err != nil {
@@ -73,7 +73,7 @@ func TestRun(t *testing.T) {
 	}
 	resultBytes, err := os.ReadFile(SetupFile)
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Error(err.Error())
 	}
 	result := string(resultBytes)
 	exp := `# Hello, Potato at cd/ef.
@@ -91,7 +91,7 @@ func TestRun(t *testing.T) {
 	projectContextBytes = []byte(`{"things": ["a", "b", "c"]}`)
 	err = os.WriteFile(projectContextFile, projectContextBytes, 0777)
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err.Error())
 	}
 	ok, err = Run(false)
 	if ok || err != nil {
@@ -103,7 +103,7 @@ func TestRun(t *testing.T) {
 	}
 	resultBytes, err = os.ReadFile(SetupFile)
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Error(err.Error())
 	}
 	result = string(resultBytes)
 	exp = `# Hello, Potato at cd/ef.

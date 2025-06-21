@@ -10,14 +10,14 @@ import (
 func TestFindDir(t *testing.T) {
 	cwd, err := os.Getwd()
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err.Error())
 	}
 	expTarget := filepath.Join(filepath.Dir(cwd), ".git")
 	target, rel, err := util.FindDir(".git")
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Error(err.Error())
 	}
-	if !(target == expTarget && rel == "util") {
+	if target != expTarget || rel != "util" {
 		t.Errorf("%v, %v", target, expTarget)
 	}
 	_, _, err = util.FindDir("does-not-exist")
